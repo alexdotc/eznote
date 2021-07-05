@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import argparse
+import sqlite3
+
+parser = argparse.ArgumentParser(description='eznote CLI options parser')
+
+parser.add_argument("note", metavar="NOTE", type=str, nargs='?', help="Write an inline note and save it")
+parser.add_argument("-o", "--db", metavar="DB", type=str, default="eznote.sqlite", help="SQLite db output file")
+
+args = parser.parse_args()
+
+class Note:
+    def __init__(self, text="", tags=[]):
+        self.text = text
+        self.tags = tags
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(\"{self.text}\", {self.tags})"
+
+def init_db(db: str) -> sqlite3.Connection:
+    con = sqlite3.connect(db)
+    cur = con.cursor()
+    try:
+        cur.execute("CREATE TABLE notes(text text, tags text)")
+    except sqlite3.OperationalError:
+        pass
+    cur.close()
+    return con
+
+db = init_db(args.db)
+cur = db.cursor()
+
+if args.note:
+    note = Note(args.note)
+    cur.execute("INSERT INTO notes VALUES (?, ?)", (note.text, "".join(note.tags)))
+
+cur.execute("SELECT * FROM notes")
+print(cur.fetchall())
+
+db.commit()
+cur.close()
+db.close()
