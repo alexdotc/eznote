@@ -2,27 +2,39 @@
 
 import argparse
 import sqlite3
+import datetime
 
 parser = argparse.ArgumentParser(description='eznote CLI options parser')
 
-parser.add_argument("note", metavar="NOTE", type=str, nargs='?', help="Write an inline note and save it")
-parser.add_argument("-o", "--db", metavar="DB", type=str, default="eznote.sqlite", help="SQLite db output file")
+parser.add_argument("note", metavar="NOTE", type=str, nargs='?', 
+                    help="Write an inline note and save it")
+parser.add_argument("-o", "--db", metavar="DB", type=str, 
+                   default="eznote.sqlite", help="SQLite db output file")
+parser.add_argument("-l", "--list", action="store_true", help="List all notes")
 
 args = parser.parse_args()
 
 class Note:
-    def __init__(self, text="", tags=[]):
+    def __init__(self, text, tags=[], created=datetime.datetime.now(), 
+                 modified=datetime.datetime.now()):
+        self.created = created
+        self.modified = modified
         self.text = text
         self.tags = tags
 
     def __repr__(self):
         return f"{self.__class__.__name__}(\"{self.text}\", {self.tags})"
 
+    def __str__(self):
+        human_readable = self.modified.strftime("%Y-%m-%d %I:%M %p")
+        return f"{human_readable} -- {self.text}"
+
 def init_db(db: str) -> sqlite3.Connection:
     con = sqlite3.connect(db)
     cur = con.cursor()
     try:
-        cur.execute("CREATE TABLE notes(text text, tags text)")
+        cur.execute("CREATE TABLE notes(text text, tags text, " +
+                                        "created real, modified real)")
     except sqlite3.OperationalError:
         pass
     cur.close()
@@ -33,10 +45,22 @@ cur = db.cursor()
 
 if args.note:
     note = Note(args.note)
-    cur.execute("INSERT INTO notes VALUES (?, ?)", (note.text, "".join(note.tags)))
+    cur.execute("INSERT INTO notes VALUES (?, ?, ?, ?)", 
+                                          (note.text,
+                                          "".join(note.tags),
+                                          note.created.timestamp(),
+                                          note.modified.timestamp(),
+                                          )
+               )
 
-cur.execute("SELECT * FROM notes")
-print(cur.fetchall())
+if args.list:
+    cur.execute("SELECT * FROM notes")
+    for note in cur.fetchall():
+        note = Note(note[0], note[1].split(), 
+               datetime.datetime.fromtimestamp(note[2]),
+               datetime.datetime.fromtimestamp(note[3]),
+               )
+        print(f"{note}, tags: {note.tags}")
 
 db.commit()
 cur.close()
