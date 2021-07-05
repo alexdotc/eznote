@@ -12,7 +12,6 @@ parser.add_argument("-t", "--tags", metavar="TAGS", type=str, nargs='+',
                     help="Tag your note with helpful tags")
 parser.add_argument("-o", "--db", metavar="DB", type=str, 
                    default="eznote.sqlite", help="SQLite db output file")
-parser.add_argument("-l", "--list", action="store_true", help="List notes")
 parser.add_argument("-v", "--verbose", action="store_true",
                     help="List notes with tags and other metadata")
 parser.add_argument("-s", "--search", metavar="TERMS", type=str, nargs='+',
@@ -70,10 +69,7 @@ if args.note:
                )
     print("New note written: ", note)
 
-elif not args.list:
-    list_notes(cur, args.verbose, args.search)
-
-if args.list:
+else:
     list_notes(cur, args.verbose, args.search)
 
 db.commit()
