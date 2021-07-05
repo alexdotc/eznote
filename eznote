@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
-import sqlite3
 import datetime
+import sqlite3
 
 parser = argparse.ArgumentParser(description='eznote CLI options parser')
 
 parser.add_argument("note", metavar="NOTE", type=str, nargs='?', 
                     help="Write an inline note and save it")
+parser.add_argument("-t", "--tags", metavar="TAGS", type=str, nargs='+',
+                    help="Tag your note with helpful tags")
 parser.add_argument("-o", "--db", metavar="DB", type=str, 
                    default="eznote.sqlite", help="SQLite db output file")
 parser.add_argument("-l", "--list", action="store_true", help="List all notes")
@@ -15,12 +17,12 @@ parser.add_argument("-l", "--list", action="store_true", help="List all notes")
 args = parser.parse_args()
 
 class Note:
-    def __init__(self, text, tags=[], created=datetime.datetime.now(), 
+    def __init__(self, text, tags=None, created=datetime.datetime.now(), 
                  modified=datetime.datetime.now()):
         self.created = created
         self.modified = modified
         self.text = text
-        self.tags = tags
+        self.tags = [] if None else tags
 
     def __repr__(self):
         return f"{self.__class__.__name__}(\"{self.text}\", {self.tags})"
@@ -30,24 +32,24 @@ class Note:
         return f"{human_readable} -- {self.text}"
 
 def init_db(db: str) -> sqlite3.Connection:
-    con = sqlite3.connect(db)
-    cur = con.cursor()
+    db = sqlite3.connect(db)
+    cur = db.cursor()
     try:
-        cur.execute("CREATE TABLE notes(text text, tags text, " +
-                                        "created real, modified real)")
+        cur.execute("CREATE TABLE notes " +
+                    "(text text, tags text, created real, modified real)")
     except sqlite3.OperationalError:
         pass
     cur.close()
-    return con
+    return db
 
 db = init_db(args.db)
 cur = db.cursor()
 
 if args.note:
-    note = Note(args.note)
+    note = Note(args.note, args.tags)
     cur.execute("INSERT INTO notes VALUES (?, ?, ?, ?)", 
                                           (note.text,
-                                          "".join(note.tags),
+                                          " ".join(note.tags),
                                           note.created.timestamp(),
                                           note.modified.timestamp(),
                                           )
@@ -60,7 +62,7 @@ if args.list:
                datetime.datetime.fromtimestamp(note[2]),
                datetime.datetime.fromtimestamp(note[3]),
                )
-        print(f"{note}, tags: {note.tags}")
+        print(note)
 
 db.commit()
 cur.close()
