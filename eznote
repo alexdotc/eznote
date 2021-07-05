@@ -12,7 +12,9 @@ parser.add_argument("-t", "--tags", metavar="TAGS", type=str, nargs='+',
                     help="Tag your note with helpful tags")
 parser.add_argument("-o", "--db", metavar="DB", type=str, 
                    default="eznote.sqlite", help="SQLite db output file")
-parser.add_argument("-l", "--list", action="store_true", help="List all notes")
+parser.add_argument("-l", "--list", action="store_true", help="List notes")
+parser.add_argument("-v", "--verbose", action="store_true",
+                    help="List notes with tags and other metadata")
 
 args = parser.parse_args()
 
@@ -22,7 +24,7 @@ class Note:
         self.created = created
         self.modified = modified
         self.text = text
-        self.tags = [] if None else tags
+        self.tags = [] if tags == None else tags
 
     def __repr__(self):
         return f"{self.__class__.__name__}(\"{self.text}\", {self.tags})"
@@ -42,7 +44,16 @@ def init_db(db: str) -> sqlite3.Connection:
     cur.close()
     return db
 
-db = init_db(args.db)
+def list_notes(cur: sqlite3.Cursor, verbose: bool=False):
+    cur.execute("SELECT * FROM notes")
+    for note in cur.fetchall():
+        note = Note(note[0], note[1].split(), 
+               datetime.datetime.fromtimestamp(note[2]),
+               datetime.datetime.fromtimestamp(note[3]),
+               )
+        print(note, f"-- TAGS: {note.tags}" if verbose else "")
+
+db = init_db(args.db, )
 cur = db.cursor()
 
 if args.note:
@@ -54,15 +65,13 @@ if args.note:
                                           note.modified.timestamp(),
                                           )
                )
+    print("New note written: ", note)
+
+elif not args.list:
+    list_notes(cur, args.verbose)
 
 if args.list:
-    cur.execute("SELECT * FROM notes")
-    for note in cur.fetchall():
-        note = Note(note[0], note[1].split(), 
-               datetime.datetime.fromtimestamp(note[2]),
-               datetime.datetime.fromtimestamp(note[3]),
-               )
-        print(note)
+    list_notes(cur, args.verbose)
 
 db.commit()
 cur.close()
