@@ -45,7 +45,7 @@ def init_db(db: str) -> sqlite3.Connection:
     return con
 
 def list_notes(cur: sqlite3.Cursor, verbose: bool=False):
-    cur.execute("SELECT * FROM notes")
+    cur.execute("SELECT * FROM notes ORDER BY modified DESC")
     for note in cur.fetchall():
         note = Note(note[0], note[1].split(), 
                datetime.datetime.fromtimestamp(note[2]),
