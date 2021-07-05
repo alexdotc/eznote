@@ -15,6 +15,8 @@ parser.add_argument("-o", "--db", metavar="DB", type=str,
 parser.add_argument("-l", "--list", action="store_true", help="List notes")
 parser.add_argument("-v", "--verbose", action="store_true",
                     help="List notes with tags and other metadata")
+parser.add_argument("-s", "--search", metavar="TERMS", type=str, nargs='+',
+                    help="Filter notes list tags")
 
 args = parser.parse_args()
 
@@ -24,7 +26,7 @@ class Note:
         self.created = created
         self.modified = modified
         self.text = text
-        self.tags = [] if tags == None else tags
+        self.tags = [] if not tags else tags
 
     def __repr__(self):
         return f"{self.__class__.__name__}(\"{self.text}\", {self.tags})"
@@ -44,16 +46,17 @@ def init_db(db: str) -> sqlite3.Connection:
     cur.close()
     return con
 
-def list_notes(cur: sqlite3.Cursor, verbose: bool=False):
+def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[]):
     cur.execute("SELECT * FROM notes ORDER BY modified DESC")
     for note in cur.fetchall():
-        note = Note(note[0], note[1].split(), 
+        note = Note(note[0], note[1].split(),
                datetime.datetime.fromtimestamp(note[2]),
                datetime.datetime.fromtimestamp(note[3]),
                )
+        if search and not [x for x in search if x in note.tags]: continue
         print(note, f"-- TAGS: {note.tags}" if verbose else "")
 
-db = init_db(args.db, )
+db = init_db(args.db)
 cur = db.cursor()
 
 if args.note:
@@ -68,10 +71,10 @@ if args.note:
     print("New note written: ", note)
 
 elif not args.list:
-    list_notes(cur, args.verbose)
+    list_notes(cur, args.verbose, args.search)
 
 if args.list:
-    list_notes(cur, args.verbose)
+    list_notes(cur, args.verbose, args.search)
 
 db.commit()
 cur.close()
