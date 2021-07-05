@@ -34,15 +34,15 @@ class Note:
         return f"{human_readable} -- {self.text}"
 
 def init_db(db: str) -> sqlite3.Connection:
-    db = sqlite3.connect(db)
-    cur = db.cursor()
+    con = sqlite3.connect(db)
+    cur = con.cursor()
     try:
         cur.execute("CREATE TABLE notes " +
                     "(text text, tags text, created real, modified real)")
     except sqlite3.OperationalError:
         pass
     cur.close()
-    return db
+    return con
 
 def list_notes(cur: sqlite3.Cursor, verbose: bool=False):
     cur.execute("SELECT * FROM notes")
