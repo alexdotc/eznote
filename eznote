@@ -2,7 +2,10 @@
 
 import argparse
 import datetime
+import re
 import sqlite3
+
+from typing import Union,Pattern
 
 parser = argparse.ArgumentParser(description='eznote CLI options parser')
 
@@ -17,6 +20,8 @@ parser.add_argument("-v", "--verbose", action="store_true",
                     help="List notes with tags and other metadata")
 parser.add_argument("-s", "--search", metavar="TERMS", type=str, nargs='+',
                     help="Filter notes list tags")
+parser.add_argument("-S", "--scour", metavar="REGEX", type=re.compile,
+                    help="Regex-supported note full text search")
 
 args = parser.parse_args()
 
@@ -46,7 +51,8 @@ def init_db(db: str) -> sqlite3.Connection:
     cur.close()
     return con
 
-def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[]):
+def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[], 
+               scour: Union[None,Pattern]=None):
     cur.execute("SELECT * FROM notes ORDER BY modified DESC")
     for note in cur.fetchall():
         note = Note(note[0], note[1].split(),
@@ -54,6 +60,8 @@ def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[]):
                datetime.datetime.fromtimestamp(note[3]),
                )
         if search and not [x for x in search if x in note.tags]: continue
+        if scour and not scour.search(note.text): continue
+            
         print(note, f"-- TAGS: {note.tags}" if verbose else "")
 
 db = init_db(args.db)
@@ -71,10 +79,10 @@ if args.note:
     print("New note written: ", note)
 
 elif not args.list:
-    list_notes(cur, args.verbose, args.search)
+    list_notes(cur, args.verbose, args.search, args.scour)
 
 if args.list:
-    list_notes(cur, args.verbose, args.search)
+    list_notes(cur, args.verbose, args.search, args.scour)
 
 db.commit()
 cur.close()
