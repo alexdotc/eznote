@@ -22,6 +22,8 @@ parser.add_argument("-s", "--search", metavar="TERMS", type=str, nargs='+',
                     help="Filter notes list tags")
 parser.add_argument("-S", "--scour", metavar="REGEX", type=re.compile,
                     help="Regex-supported note full text search")
+parser.add_argument("-d", "--delete", metavar="ID", type=int,
+                    help="Delete note with this id")
 
 args = parser.parse_args()
 
@@ -52,6 +54,10 @@ def init_db(db: str) -> sqlite3.Connection:
     cur.close()
     return con
 
+def delete_note(cur: sqlite3.Cursor, ident: int) -> bool:
+    cur.execute(f"DELETE FROM notes WHERE ident={ident}")
+    return True
+
 def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[], 
                scour: Union[None,Pattern]=None):
     cur.execute("SELECT * FROM notes ORDER BY modified DESC")
@@ -67,6 +73,9 @@ def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[],
 
 db = init_db(args.db)
 cur = db.cursor()
+
+if args.delete:
+    delete_note(cur, args.delete)
 
 if args.note:
     note = Note(0, args.note, args.tags)
