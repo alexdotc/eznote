@@ -26,8 +26,9 @@ parser.add_argument("-S", "--scour", metavar="REGEX", type=re.compile,
 args = parser.parse_args()
 
 class Note:
-    def __init__(self, text, tags=None, created=datetime.datetime.now(), 
+    def __init__(self, ident, text, tags=None, created=datetime.datetime.now(),
                  modified=datetime.datetime.now()):
+        self.ident = ident
         self.created = created
         self.modified = modified
         self.text = text
@@ -44,8 +45,8 @@ def init_db(db: str) -> sqlite3.Connection:
     con = sqlite3.connect(db)
     cur = con.cursor()
     try:
-        cur.execute("CREATE TABLE notes " +
-                    "(text text, tags text, created real, modified real)")
+        cur.execute("CREATE TABLE notes " + "(ident integer primary key, " +
+                    "text text, tags text, created real, modified real)")
     except sqlite3.OperationalError:
         pass
     cur.close()
@@ -55,21 +56,21 @@ def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[],
                scour: Union[None,Pattern]=None):
     cur.execute("SELECT * FROM notes ORDER BY modified DESC")
     for note in cur.fetchall():
-        note = Note(note[0], note[1].split(),
-               datetime.datetime.fromtimestamp(note[2]),
+        note = Note(note[0], note[1], note[2].split(),
                datetime.datetime.fromtimestamp(note[3]),
+               datetime.datetime.fromtimestamp(note[4]),
                )
         if search and not [x for x in search if x in note.tags]: continue
         if scour and not scour.search(note.text): continue
             
-        print(note, f"-- TAGS: {note.tags}" if verbose else "")
+        print(f"{note.ident})", note, f"-- TAGS: {note.tags}" if verbose else "")
 
 db = init_db(args.db)
 cur = db.cursor()
 
 if args.note:
-    note = Note(args.note, args.tags)
-    cur.execute("INSERT INTO notes VALUES (?, ?, ?, ?)", 
+    note = Note(0, args.note, args.tags)
+    cur.execute("INSERT INTO notes VALUES (NULL, ?, ?, ?, ?)",
                                           (note.text,
                                           " ".join(note.tags),
                                           note.created.timestamp(),
