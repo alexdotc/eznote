@@ -4,8 +4,10 @@ import argparse
 import datetime
 import re
 import sqlite3
+import sys
 
 from typing import Union,Pattern
+from ezlib.terminal import Tcolors
 
 parser = argparse.ArgumentParser(description='eznote CLI options parser')
 
@@ -54,9 +56,9 @@ def init_db(db: str) -> sqlite3.Connection:
     cur.close()
     return con
 
-def delete_note(cur: sqlite3.Cursor, ident: int) -> bool:
-    cur.execute(f"DELETE FROM notes WHERE ident={ident}")
-    return True
+def delete_note(cur: sqlite3.Cursor, ident: int) -> int:
+    cur.execute("DELETE FROM notes WHERE ident=?", (ident,))
+    return cur.rowcount
 
 def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[], 
                scour: Union[None,Pattern]=None):
@@ -74,8 +76,9 @@ def list_notes(cur: sqlite3.Cursor, verbose: bool=False, search: list=[],
 db = init_db(args.db)
 cur = db.cursor()
 
-if args.delete:
-    delete_note(cur, args.delete)
+if args.delete and not delete_note(cur, args.delete):
+    print(f"{Tcolors.WARNING}Could not find and delete note with id " +
+            f"{args.delete}{Tcolors.ENDC}!", file=sys.stderr)
 
 if args.note:
     note = Note(0, args.note, args.tags)
@@ -86,7 +89,7 @@ if args.note:
                                           note.modified.timestamp(),
                                           )
                )
-    print("New note written: ", note)
+    print(f"{Tcolors.OKGREEN}New note written:{Tcolors.ENDC} {note}")
 
 elif not args.list:
     list_notes(cur, args.verbose, args.search, args.scour)
